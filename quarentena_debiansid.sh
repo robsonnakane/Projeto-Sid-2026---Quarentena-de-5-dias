@@ -1,5 +1,4 @@
 #!/bin/bash
-
 # Arquivo permanente para cache de datas (evita consultas repetidas à rede)
 ARQUIVO_CACHE=$HOME/.config/quarentena_changelog_cache.txt
 mkdir -p $(dirname $ARQUIVO_CACHE)
@@ -42,9 +41,9 @@ echo -e "\n${AZUL}==============================================================
 echo -e "🛡️ SISTEMA DE QUARENTENA AUTOMÁTICA ATIVO"
 echo -e "• Bugs ou Quarentena < 5 dias ➔ HOLD AUTOMÁTICO"
 if [ "$MODO_EXECUCAO" = true ]; then
-    echo -e "• Quarentena concluída      ➔ UNHOLD AUTOMÁTICO"
+    echo -e "• Quarentena concluída ➔ UNHOLD AUTOMÁTICO"
 else
-    echo -e "• Quarentena concluída      ➔ MODO SIMULAÇÃO (Use --executar para liberar)"
+    echo -e "• Quarentena concluída ➔ MODO SIMULAÇÃO (Use --executar para liberar)"
 fi
 echo -e "======================================================================${SEM_COR}"
 
@@ -53,7 +52,6 @@ data_atual_s=$(date +%s)
 
 for pacote in $todos_pacotes; do
     echo "----------------------------------------------------------------------"
-
     estado_hold="Não"
     if echo "$pacotes_em_hold" | grep -q "^$pacote$" ; then
         estado_hold="Sim"
@@ -87,7 +85,7 @@ for pacote in $todos_pacotes; do
     if [ -z "$data_changelog" ]; then
         # Se não estiver no cache, faz a busca via changelog
         data_changelog=$(apt-get changelog "$pacote" 2>/dev/null | grep -E '^ --' | head -n 1 | sed 's/^.* //')
-
+        
         # Salva no cache local
         if [ -n "$data_changelog" ]; then
             echo "${chave_cache} ${data_changelog}" >> $ARQUIVO_CACHE
@@ -106,8 +104,33 @@ for pacote in $todos_pacotes; do
 
     echo -e "• Idade da versão instalada/candidata: ${AMARELO}$diferenca_dias dias${SEM_COR}"
 
-    # 2. Executa a listagem individual para o pacote
-    saida_bugs=$(apt-listbugs list "$pacote" 2>/dev/null)
+    # 2. Executa a listagem individual com proteção contra travamento (Looping de Timeout)
+    tentativas=1
+    max_tentativas=3
+    saida_bugs=""
+    status_timeout=0
+
+    while [ $tentativas -le $max_tentativas ]; do
+        # O comando timeout retorna 124 se estourar o tempo estipulado
+        saida_bugs=$(timeout 10 apt-listbugs list "$pacote" 2>/dev/null)
+        status_timeout=$?
+
+        if [ $status_timeout -eq 124 ]; then
+            echo -e "• ${AMARELO}⚠️ apt-listbugs demorou mais de 10s (Tentativa $tentativas/$max_tentativas). Reiniciando...${SEM_COR}"
+            tentativas=$((tentativas + 1))
+            sleep 1
+        else
+            break
+        fi
+    done
+
+    # Ação de segurança se o apt-listbugs falhar/travar de vez após as 3 tentativas
+    if [ $status_timeout -eq 124 ]; then
+        echo -e "• Status de Bugs: ${VERMELHO}❌ Erro de comunicação contínuo com a BTS do Debian.${SEM_COR}"
+        echo -e "• Ação: ${VERMELHO}Mantendo/Aplicando HOLD preventivo por falha na checagem.${SEM_COR}"
+        sudo apt-mark hold "$pacote" &>/dev/null
+        continue
+    fi
 
     # Aplica os filtros baseados em strings
     linhas_impeditivas=$(echo "$saida_bugs" | grep -E "Pendente|Encaminhado")
@@ -121,7 +144,6 @@ for pacote in $todos_pacotes; do
             echo -e "• Ação: ${VERMELHO}⚠️ BUG CRÍTICO DETECTADO! Aplicando HOLD urgente...${SEM_COR}"
             sudo apt-mark hold "$pacote"
         fi
-
     elif [ -n "$linhas_resolvidas" ] || [ -z "$saida_bugs" ] || echo "$saida_bugs" | grep -q "Nenhum bug" ; then
         if [ -n "$linhas_resolvidas" ]; then
             echo -e "• Status de Bugs: ${VERDE}✅ Todos os bugs deste pacote constam como [Resolvido].${SEM_COR}"
@@ -152,5 +174,4 @@ for pacote in $todos_pacotes; do
         fi
     fi
 done
-
 echo "----------------------------------------------------------------------"

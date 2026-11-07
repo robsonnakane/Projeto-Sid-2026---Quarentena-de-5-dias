@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 ##O comando "set -euo" faz o script parar imediatamente caso qualquer comando dentro dele retorne um erro (exit code diferente de 0).(-e → para no erro) (-u → trata variáveis não definidas como erro) (-o pipefail → considera falha em pipe () se qualquer comando falhar
+
 echo "########################################################################################################"
 echo ">>Debian Sid<< >>Atualização completa do sistema<<"
 echo "########################################################################################################"
@@ -35,22 +36,6 @@ echo ">>Instalação dos programas Flatpak<<"
 #flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo;
 #flatpak install flathub com.spotify.Client -y; flatpak install flathub us.zoom.Zoom -y; flatpak install flathub org.onlyoffice.desktopeditors -y; flatpak install flathub com.adobe.Flash-Player-Projector -y; flatpak install flathub com.github.IsmaelMartinez.teams_for_linux -y; flatpak install flathub org.fedoraproject.MediaWriter -y; flatpak install flathub org.kde.kget -y; flatpak install flathub org.videolan.VLC -y; flatpak install flathub net.mkiol.SpeechNote -y; flatpak install flathub com.saivert.pwvucontrol -y; flatpak install flathub io.github.dvlv.boxbuddyrs -y; flatpak install flathub org.telegram.desktop -y; flatpak install flathub com.obsproject.Studio -y; flatpak install flathub org.audacityteam.Audacity -y; flatpak install flathub com.github.tchx84.Flatseal -y; flatpak install flathub com.google.ChromeDev -y; flatpak install flathub com.mattjakeman.ExtensionManager -y;
 echo "########################################################################################################"
-echo ">>Atualização do Flatpak<<"
-flatpak update -y || true
-echo "$?"
-echo ">>Atualização dos pacotes instalados via distrobox<<"
-distrobox enter archlinux -- sudo pacman -Syyuu --noconfirm || true
-echo ">>Limpeza do cache archlinux<<"
-distrobox enter archlinux -- sudo pacman -Scc --noconfirm || true
-echo "$?"
-##Baixar um vídeo em melhor qualidade:##
-#distrobox enter archlinux -- yt-dlp URL
-    ##Baixar só áudio (MP3):
-#distrobox enter archlinux -- yt-dlp -x --audio-format mp3 URL
-
-##Importação dos arquivos transferidos via Tailscale (/var/lib/tailscale/files)
-#sudo tailscale file get ~/
-echo "########################################################################################################"
 echo ">>Modernização das fontes<<"
 #apt modernize-sources || true
 yes "Y" | sudo apt modernize-sources || true
@@ -61,14 +46,17 @@ echo "$?"
 echo ">>Lista dos pacotes atualizáveis<<"
 apt list --upgradable --no-pager 2>/dev/null || true
 echo "$?"
-echo ">>Simulação do APT Upgrade<<"
-sudo apt upgrade -sy || true
+
+echo "########################################################################################################"
+echo ">>Ferramenta em teste<<"
+echo "########################################################################################################"
+sudo ./quarentena_debiansid.sh --executar || true
+echo "$?"
+
+echo "########################################################################################################"
 echo ">>Lista dos pacotes com bugs<<"
 sudo dpkg --configure -a || true
 echo "$?"
-echo "########################################################################################################"
-echo ">>Caso tenha algum pacote listado, apt-listbugs e escolher a opção 'p' para pinar os pacotes com bugs<<"
-echo "########################################################################################################"
 echo ">>Verifica o cache e busca dependências quebradas<<"
 sudo apt-get check || true
 echo "$?"
@@ -84,7 +72,22 @@ echo "$?"
 echo ">>Limpeza de restos de pacotes<<"
 sudo apt-get purge $(dpkg -l | awk '/^rc/{print$2}') || true
 echo "$?"
+echo "########################################################################################################"
+echo ">>Atualização do Flatpak<<"
+sudo flatpak update -y || true
+echo "$?"
+echo ">>Atualização dos pacotes instalados via distrobox<<"
+distrobox enter archlinux -- sudo pacman -Syyuu --noconfirm || true
+echo ">>Limpeza do cache archlinux<<"
+distrobox enter archlinux -- sudo pacman -Scc --noconfirm || true
+echo "$?"
+##Baixar um vídeo em melhor qualidade:##
+#distrobox enter archlinux -- yt-dlp URL
+    ##Baixar só áudio (MP3):
+#distrobox enter archlinux -- yt-dlp -x --audio-format mp3 URL
 
+##Importação dos arquivos transferidos via Tailscale (/var/lib/tailscale/files)
+#sudo tailscale file get ~/
 echo "########################################################################################################"
 echo ">>Ferramenta em teste<<"
 echo "########################################################################################################"
@@ -98,21 +101,14 @@ apt -s full-upgrade | awk '/^Remv / {print $2}' | xargs -I {} sh -c '
   echo "";
   echo "[⬆️] Quem DEPENDE DELE instalado no sistema (Dep. Reversas):";
   apt-cache rdepends --installed {} | grep -v -E "(Reverse Depends:|{})" | awk "{print \"  -> \" \$1}" || echo "  (Nenhum)";
-  echo "";
-'
+  echo "";'
 echo "$?"
 echo "########################################################################################################"
 echo ">>Ferramenta em teste<<"
 echo "########################################################################################################"
 sudo ./"Validador de Inicialização Automática (Post-Upgrade Health Check).sh"
 echo "$?"
-echo "########################################################################################################"
-echo ">>Ferramenta em teste<<"
-echo "########################################################################################################"
-sudo ./quarentena_debiansid.sh --executar || true
-echo "$?"
-echo "########################################################################################################"
-echo ">>sudo apt full-upgrade é aplicavel se tudo estiver ok<<"
-echo "########################################################################################################"
-echo ">>Se no resumo tiver atualização, reiniciar. Caso contrário digite: exit e pressione enter.<<"
-echo "########################################################################################################"
+echo ">>Verificação final se há Atualização<<"
+apt-get upgrade -s | grep -q "^Inst"
+echo ">>Full-Upagrade<<"
+sudo apt full-upgrade
