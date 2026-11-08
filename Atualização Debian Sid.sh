@@ -2,8 +2,11 @@
 set -euo pipefail
 ##O comando "set -euo" faz o script parar imediatamente caso qualquer comando dentro dele retorne um erro (exit code diferente de 0).(-e → para no erro) (-u → trata variáveis não definidas como erro) (-o pipefail → considera falha em pipe () se qualquer comando falhar
 
+##Intercepta o Ctrl+C e encerramentos matando o script na hora
+trap 'echo -e "\n[!] Execução interrompida pelo usuário"; exit 130' INT TERM
+
 echo "########################################################################################################"
-echo ">>Debian Sid<< >>Atualização completa do sistema<<"
+echo ">>Debian Sid<< >>Atualização completa do sistema + Informações<<"
 echo "########################################################################################################"
 echo ">>Ajuste sobre escala fora do padrão<<"
 ##Editar no tty disponível:
@@ -46,14 +49,9 @@ echo "$?"
 echo ">>Lista dos pacotes atualizáveis<<"
 apt list --upgradable --no-pager 2>/dev/null || true
 echo "$?"
-
-echo "########################################################################################################"
-echo ">>Ferramenta em teste<<"
 echo "########################################################################################################"
 sudo ./quarentena_debiansid.sh --executar || true
 echo "$?"
-
-echo "########################################################################################################"
 echo ">>Lista dos pacotes com bugs<<"
 sudo dpkg --configure -a || true
 echo "$?"
@@ -62,9 +60,6 @@ sudo apt-get check || true
 echo "$?"
 echo ">>Garante que nenhuma dependência ficou órfã ou corrompida<<"
 sudo apt install -f || true
-echo "$?"
-echo ">>APT Autoremove<<"
-sudo apt autoremove -y || true
 echo "$?"
 echo ">>Status dos pacotes na lista de bugs do Debian<<"
 apt-listbugs list $(apt-mark showhold) | grep -E "Pendente|Encaminhado|Resolvido" || true
@@ -89,8 +84,11 @@ echo "$?"
 ##Importação dos arquivos transferidos via Tailscale (/var/lib/tailscale/files)
 #sudo tailscale file get ~/
 echo "########################################################################################################"
-echo ">>Ferramenta em teste<<"
-echo "########################################################################################################"
+echo ">>Upagrade System<<"
+echo apt upgrade || true
+echo "$?"
+sudo apt full-upgrade || true
+echo "$?"
 echo ">>Lista das dependencias dos pacotes a remover<<"
 apt -s full-upgrade | awk '/^Remv / {print $2}' | xargs -I {} sh -c '
   echo "----------------------------------------";
@@ -103,12 +101,11 @@ apt -s full-upgrade | awk '/^Remv / {print $2}' | xargs -I {} sh -c '
   apt-cache rdepends --installed {} | grep -v -E "(Reverse Depends:|{})" | awk "{print \"  -> \" \$1}" || echo "  (Nenhum)";
   echo "";'
 echo "$?"
-echo "########################################################################################################"
-echo ">>Ferramenta em teste<<"
+echo ">>APT Autoremove<<"
+sudo apt autoremove || true
+echo "$?"
 echo "########################################################################################################"
 sudo ./"Validador de Inicialização Automática (Post-Upgrade Health Check).sh"
 echo "$?"
-echo ">>Verificação final se há Atualização<<"
-apt-get upgrade -s | grep -q "^Inst"
-echo ">>Full-Upagrade<<"
-sudo apt full-upgrade
+echo "########################################################################################################"
+echo ">>Caso tenha atualizações de kernel, executar o comando: sudo reboot -i<<"
