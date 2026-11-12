@@ -22,11 +22,11 @@ if ! command -v apt-listbugs &> /dev/null; then
     exit 1
 fi
 
-echo -e "${AZUL}Sincronizando índices dos repositórios...${SEM_COR}"
-sudo apt-get update -qq
+#echo -e "${AZUL}Sincronizando índices dos repositórios...${SEM_COR}"
+#sudo apt-get update -qq
 
 # 1. Captura pacotes da fila de upgrade e pacotes em hold
-fila_upgrade=$(sudo apt-get -s upgrade | awk '/^Inst/ {print $2}')
+fila_upgrade=$(sudo apt-get -s dist-upgrade | awk '/^Inst/ {print $2}')
 pacotes_em_hold=$(apt-mark showhold)
 
 # Combina as duas listas removendo duplicatas
@@ -75,25 +75,29 @@ for pacote in $todos_pacotes; do
         versao_alvo=$versao_nova
     fi
 
-    # --- Cálculo dinâmico baseado no seu código (com Cache de segurança) ---
+    # --- Cálculo dinâmico via Changelog Oficial (com Fallback para Data Local e Cache) ---
     diferenca_dias=0
     chave_cache="${pacote}_${versao_alvo}"
 
-    # Procura a data primeiro no cache local
-    data_changelog=$(grep "^${chave_cache}" $ARQUIVO_CACHE | cut -d ' ' -f2-)
+    # 1. Procura a data primeiro no cache local
+    data_pacote=$(grep "^${chave_cache} " "$ARQUIVO_CACHE" | cut -d ' ' -f2-)
 
-    if [ -z "$data_changelog" ]; then
-        # Se não estiver no cache, faz a busca via changelog
-        data_changelog=$(apt-get changelog "$pacote" 2>/dev/null | grep -E '^ --' | head -n 1 | sed 's/^.* //')
-        
-        # Salva no cache local
-        if [ -n "$data_changelog" ]; then
-            echo "${chave_cache} ${data_changelog}" >> $ARQUIVO_CACHE
+    if [ -z "$data_pacote" ]; then
+        # 2. Busca a data completa na assinatura oficial do Debian Changelog
+        data_pacote=$(apt-get changelog "${pacote}=${versao_alvo}" 2>/dev/null | grep -E '^ --' | head -n 1 | sed 's/.*>  //')
+
+        # 3. Fallback: Se o pacote não possuir changelog remoto (ex: repositório externo), usa data local
+        if [ -z "$data_pacote" ]; then
+            data_pacote=$(date -R)
+            echo -e "• ${AMARELO}ℹ️ Sem changelog remoto; iniciando quarentena pela data local.${SEM_COR}"
         fi
+
+        # Salva a data validada no cache local
+        echo "${chave_cache} ${data_pacote}" >> "$ARQUIVO_CACHE"
     fi
 
-    if [ -n "$data_changelog" ]; then
-        timestamp_pacote=$(date -d "$data_changelog" +%s 2>/dev/null)
+    if [ -n "$data_pacote" ]; then
+        timestamp_pacote=$(date -d "$data_pacote" +%s 2>/dev/null)
         if [ -n "$timestamp_pacote" ]; then
             diferenca_dias=$(( (data_atual_s - timestamp_pacote) / 86400 ))
             if [ $diferenca_dias -lt 0 ]; then
@@ -109,10 +113,14 @@ for pacote in $todos_pacotes; do
     max_tentativas=3
     saida_bugs=""
     status_timeout=0
-
+    alvos_bugs=("$pacote")
+    if [[ "$pacote" == linux-image-* ]] || [[ "$pacote" == linux-headers-* ]]; then
+        alvos_bugs+=("src:linux")
+    fi
+    # --------------------------------
     while [ $tentativas -le $max_tentativas ]; do
         # O comando timeout retorna 124 se estourar o tempo estipulado
-        saida_bugs=$(timeout 10 apt-listbugs list "$pacote" 2>/dev/null)
+        saida_bugs=$(timeout 10 apt-listbugs list "${alvos_bugs[@]}" 2>/dev/null)
         status_timeout=$?
 
         if [ $status_timeout -eq 124 ]; then
