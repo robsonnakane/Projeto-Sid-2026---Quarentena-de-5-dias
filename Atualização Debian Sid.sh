@@ -101,8 +101,8 @@ apt -s full-upgrade | awk '/^Remv / {print $2}' | xargs -I {} sh -c '
   apt-cache rdepends --installed {} | grep -v -E "(Reverse Depends:|{})" | awk "{print \"  -> \" \$1}" || echo "  (Nenhum)";
   echo "";'
 echo "$?"
-echo ">>APT Autoremove<<"
-sudo apt autoremove || true
+echo ">>APT Autopurge<<"
+sudo apt autopurge || true
 echo "$?"
 echo "########################################################################################################"
 sudo ./"Validador de Inicialização Automática (Post-Upgrade Health Check).sh"
