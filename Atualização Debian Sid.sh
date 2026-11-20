@@ -7,6 +7,7 @@ trap 'echo -e "\n[!] Execução interrompida pelo usuário"; exit 130' INT TERM
 
 echo "########################################################################################################"
 echo ">>Debian Sid<< >>Atualização completa do sistema + Informações<<"
+echo ">>Data de nascimento do Sid: 02 de Novembro de 2026<<"
 echo "########################################################################################################"
 echo ">>Ajuste sobre escala fora do padrão<<"
 ##Editar no tty disponível:
