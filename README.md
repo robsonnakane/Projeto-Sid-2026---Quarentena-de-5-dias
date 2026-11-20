@@ -4,7 +4,9 @@
 Este repositório é para compartilhar os arquivos de atualização dos sistemas da Família Debian de ser.
 O Fedora ainda continua como meu "porto seguro" mas todas as distros tem uma nova chance né.
 
-Em 2 de novembro de 2026 (fase alpha do projeto), elaborei o shell script "quarentena_debiansid.sh" o qual funciona para controle das novas atualizações de pacotes. O processo de hold e unhold está automático com as condições dos 5 dias de quarentena ou na presença do pacote no listbugs do Debian.
+Vou atualizando este README.md com uma cronologia meio maluca a la minha vontade de escrever... Como se segue:
+
+>> 2 de novembro de 2026 (fase alpha do projeto): elaborei o shell script "quarentena_debiansid.sh" o qual funciona para controle das novas atualizações de pacotes. O processo de hold e unhold está automático com as condições dos 5 dias de quarentena ou na presença do pacote no listbugs do Debian.
 
 O "Validador de Inicialização Automática" foi criado com o objetivo de verificar se o sistema terá algum problema antes da reinicialização. Portanto se houver alguma inconsistência, melhor resolvê-la antes de reiniciar o sistema.
 
@@ -14,9 +16,11 @@ Portanto na utilização do "Atualização Debian Sid.sh", façam o download dos
 
 Esses 3 shell scripts do Debian Sid são os mais atuais. Os outros de distros baseadas no Debian são "menos completos" até pq eu acredito que os scripts do Debian Sid sejam por enquanto os mais completos e quiçá os mais complexos existentes neste Github.
 
-Em 8 de Novembro de 2028, após a validação de alguns pacotes passados pela quarentena, atualizando-os e reiniciando o sistema sem problema algum, considero os scripts do Debian Sid como fase beta.
+>> 8 de Novembro de 2026: após a validação de alguns pacotes passados pela quarentena, atualizando-os e reiniciando o sistema sem problema algum, considero os scripts do Debian Sid como fase beta.
 
-Próximos passos, ou pelo menos idéia, elaborar uma interface gráfica para que todos possam utilizar como um atualizador de Debian Sid mas, ainda nem sei por onde começar. 
+>> 20 de Novembro de 2026: adotei a prática de que quando houver um pacote a remover, porém ao mesmo tempo existir uma dependência, seja ela qual for; irei colocar este pacote a remover para a quarentena com o "sudo apt-mark hold nomedopacote". Ou seja eu recuso toda a atualização dos pacotes liberados da quarentena, bloqueio o pacote a remover para apenas após o bloqueio, libero as atualizações do unhold.
+
+>> Próximos passos, ou pelo menos idéia: elaborar uma interface gráfica para que todos possam utilizar como um atualizador de Debian Sid mas, ainda nem sei por onde começar. 
 
 Quero talvez ter a certeza de que com esses 3 scripts fica inviável a quebra do sistema pelo menos com as novas atualizações.
 
